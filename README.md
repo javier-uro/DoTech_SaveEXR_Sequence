@@ -52,8 +52,11 @@ Patrón de salida: `{filename_prefix}{start_frame + i:0{padding}d}.exr`.
 
 ## Instalación
 
-1. Copia la carpeta `DoTech_SaveEXR_Sequence/` a `ComfyUI/custom_nodes/`.
-   - En `mur-77`: `D:\software_comfyui\ComfyUI_topaz_urosas\ComfyUI\custom_nodes\`
+1. Clona el repo en `ComfyUI/custom_nodes/`:
+   ```powershell
+   cd D:\software_comfyui\ComfyUI_topaz_urosas\ComfyUI\custom_nodes
+   git clone https://github.com/javier-uro/DoTech_SaveEXR_Sequence.git
+   ```
 2. Instala la dependencia (en el Python de ComfyUI):
    ```powershell
    .\python_embeded\python.exe -m pip install -r ComfyUI\custom_nodes\DoTech_SaveEXR_Sequence\requirements.txt
