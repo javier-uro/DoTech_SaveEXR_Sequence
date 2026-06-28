@@ -48,17 +48,17 @@ function openFolderBrowser(startPath) {
 
         const box = document.createElement("div");
         box.style.cssText =
-            "background:#202020;color:#ddd;width:740px;max-height:72vh;display:flex;" +
+            "background:#202020;color:#ddd;width:760px;max-height:72vh;display:flex;" +
             "flex-direction:column;border:1px solid #444;border-radius:8px;" +
             "font-family:sans-serif;font-size:13px;box-shadow:0 8px 30px rgba(0,0,0,.5);";
         overlay.appendChild(box);
 
         // --- Header ---------------------------------------------------------
-        const title = document.createElement("div");
-        title.textContent = "Elegir carpeta de salida";
-        title.style.cssText =
+        const header = document.createElement("div");
+        header.textContent = "Elegir carpeta de salida";
+        header.style.cssText =
             "padding:10px 14px;font-weight:600;border-bottom:1px solid #444;flex-shrink:0;";
-        box.appendChild(title);
+        box.appendChild(header);
 
         // --- Path bar -------------------------------------------------------
         const pathRow = document.createElement("div");
@@ -82,10 +82,7 @@ function openFolderBrowser(startPath) {
                 return;
             }
             const res = await addBookmark(currentPath);
-            if (res.error) {
-                pathBar.textContent = "⚠ " + res.error;
-                return;
-            }
+            if (res.error) { pathBar.textContent = "⚠ " + res.error; return; }
             renderSidebar(res.bookmarks || []);
         };
 
@@ -95,13 +92,13 @@ function openFolderBrowser(startPath) {
 
         // --- Body (sidebar + folder list) -----------------------------------
         const body = document.createElement("div");
-        body.style.cssText = "display:flex;flex:1;overflow:hidden;min-height:160px;";
+        body.style.cssText = "display:flex;flex:1;overflow:hidden;min-height:180px;";
         box.appendChild(body);
 
         // Sidebar
         const sidebar = document.createElement("div");
         sidebar.style.cssText =
-            "width:188px;min-width:188px;border-right:1px solid #2d2d2d;display:flex;" +
+            "width:210px;min-width:210px;border-right:1px solid #2d2d2d;display:flex;" +
             "flex-direction:column;overflow:hidden;";
 
         const sidebarHeader = document.createElement("div");
@@ -118,8 +115,16 @@ function openFolderBrowser(startPath) {
 
         // Folder list
         const list = document.createElement("div");
-        list.style.cssText = "flex:1;overflow-y:auto;padding:6px 0;";
+        list.style.cssText = "flex:1;overflow-y:auto;padding:6px 0;min-width:0;";
         body.appendChild(list);
+
+        // --- Info bar (muestra ruta completa del elemento bajo el cursor) ---
+        const infoBar = document.createElement("div");
+        infoBar.style.cssText =
+            "padding:3px 14px;border-top:1px solid #2a2a2a;font-family:monospace;font-size:11px;" +
+            "color:#666;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex-shrink:0;" +
+            "min-height:20px;line-height:20px;";
+        box.appendChild(infoBar);
 
         // --- Footer ---------------------------------------------------------
         const footer = document.createElement("div");
@@ -132,6 +137,9 @@ function openFolderBrowser(startPath) {
             if (overlay.parentNode) document.body.removeChild(overlay);
             resolve(result);
         };
+
+        // Helper: actualiza infoBar al hacer hover
+        function setInfo(text) { infoBar.textContent = text || ""; }
 
         // --- Sidebar rendering ----------------------------------------------
         function renderSidebar(bookmarks) {
@@ -146,15 +154,17 @@ function openFolderBrowser(startPath) {
             }
             for (const bm of bookmarks) {
                 const row = document.createElement("div");
+                row.title = bm.path;                               // tooltip nativo
                 row.style.cssText =
-                    "display:flex;align-items:center;padding:6px 8px;gap:4px;";
+                    "display:flex;align-items:center;padding:6px 8px;gap:4px;cursor:pointer;";
+                row.onmouseenter = () => setInfo(bm.path);
+                row.onmouseleave = () => setInfo("");
 
                 const label = document.createElement("div");
                 label.textContent = "📁 " + bm.label;
-                label.title = bm.path;
                 label.style.cssText =
                     "flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" +
-                    "font-size:12px;cursor:pointer;";
+                    "font-size:12px;";
                 label.onmouseenter = () => (label.style.color = "#9cdcfe");
                 label.onmouseleave = () => (label.style.color = "");
                 label.onclick = () => load(bm.path);
@@ -180,13 +190,32 @@ function openFolderBrowser(startPath) {
         }
 
         // --- Folder browser -------------------------------------------------
-        function makeRow(label, onClick, icon) {
+        // fullPath: ruta completa para tooltip e infoBar; label: solo el nombre a mostrar
+        function makeRow(label, onClick, icon, fullPath) {
             const row = document.createElement("div");
             row.style.cssText =
-                "padding:6px 16px;cursor:pointer;display:flex;gap:8px;align-items:center;";
-            row.onmouseenter = () => (row.style.background = "#2d2d2d");
-            row.onmouseleave = () => (row.style.background = "");
-            row.textContent = (icon || "📁") + " " + label;
+                "padding:6px 16px;cursor:pointer;display:flex;gap:8px;align-items:center;" +
+                "white-space:nowrap;overflow:hidden;";
+            if (fullPath) row.title = fullPath;                    // tooltip nativo
+            row.onmouseenter = () => {
+                row.style.background = "#2d2d2d";
+                if (fullPath) setInfo(fullPath);
+            };
+            row.onmouseleave = () => {
+                row.style.background = "";
+                setInfo("");
+            };
+
+            const icon_span = document.createElement("span");
+            icon_span.textContent = icon || "📁";
+            icon_span.style.cssText = "flex-shrink:0;";
+
+            const text = document.createElement("span");
+            text.textContent = label;
+            text.style.cssText = "overflow:hidden;text-overflow:ellipsis;";
+
+            row.appendChild(icon_span);
+            row.appendChild(text);
             row.onclick = onClick;
             return row;
         }
@@ -199,20 +228,17 @@ function openFolderBrowser(startPath) {
 
         async function load(path) {
             const data = await apiPost("/dotech_saveexr_sequence/listdir", { path });
-            if (data.error) {
-                pathBar.textContent = "⚠ " + data.error;
-                return;
-            }
+            if (data.error) { pathBar.textContent = "⚠ " + data.error; return; }
             currentPath = data.path || "";
             pathBar.textContent = currentPath || "(unidades)";
             list.innerHTML = "";
 
             if (data.parent !== null && data.parent !== undefined) {
-                list.appendChild(makeRow(".. (subir)", () => load(data.parent), "⬆"));
+                list.appendChild(makeRow(".. (subir)", () => load(data.parent), "⬆", data.parent || "(raíz)"));
             }
             for (const d of data.dirs) {
                 const target = data.is_root ? d : joinPath(currentPath, d);
-                list.appendChild(makeRow(d, () => load(target)));
+                list.appendChild(makeRow(d, () => load(target), "📁", target));
             }
             if (data.dirs.length === 0) {
                 const empty = document.createElement("div");
@@ -235,13 +261,8 @@ function openFolderBrowser(startPath) {
             }
             const name = prompt("Nombre de la nueva carpeta:");
             if (!name) return;
-            const res = await apiPost("/dotech_saveexr_sequence/mkdir", {
-                path: currentPath, name,
-            });
-            if (res.error) {
-                pathBar.textContent = "⚠ " + res.error;
-                return;
-            }
+            const res = await apiPost("/dotech_saveexr_sequence/mkdir", { path: currentPath, name });
+            if (res.error) { pathBar.textContent = "⚠ " + res.error; return; }
             load(res.path);
         };
         footer.appendChild(newBtn);
@@ -260,21 +281,14 @@ function openFolderBrowser(startPath) {
             "padding:6px 12px;background:#2d6cdf;color:#fff;border:none;" +
             "border-radius:4px;cursor:pointer;";
         okBtn.onclick = () => {
-            if (!currentPath) {
-                pathBar.textContent = "⚠ Entra en una carpeta primero.";
-                return;
-            }
+            if (!currentPath) { pathBar.textContent = "⚠ Entra en una carpeta primero."; return; }
             close(currentPath);
         };
         footer.appendChild(okBtn);
 
-        overlay.onclick = (e) => {
-            if (e.target === overlay) close(null);
-        };
+        overlay.onclick = (e) => { if (e.target === overlay) close(null); };
 
         document.body.appendChild(overlay);
-
-        // Carga inicial: bookmarks + directorio de partida
         fetchBookmarks().then(renderSidebar);
         load(currentPath);
     });
