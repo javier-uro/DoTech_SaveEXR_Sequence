@@ -109,6 +109,11 @@ los valores **superan 1.0** (rango HDR conservado).
 
 ## Changelog
 
+### 0.2 (2026-06-28)
+- **Bookmarks**: sidebar en el navegador de carpetas para guardar y recuperar directorios
+  de uso frecuente. Botón ⭐ para añadir la carpeta actual; botón 🗑 por bookmark para
+  eliminar. Los bookmarks se persisten en `data/bookmarks.json` (no versionado).
+
 ### 0.1 (2026-06-28)
 - Primera versión: nodo `DoTech_SaveEXR_Sequence` (OpenEXR numpy API, sin clamp, canales
   preservados, compresión configurable, pass-through) + navegador de carpetas in-app.

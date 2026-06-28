@@ -1,16 +1,25 @@
 """Endpoints del navegador de carpetas in-app de DoTech_SaveEXR_Sequence.
 
 Se registran en el servidor de ComfyUI (aiohttp) y los consume `web/folderPicker.js`.
-Permiten listar carpetas del disco del servidor y crear carpetas nuevas, para
-rellenar `output_dir` sin escribir la ruta a mano. Todo es local (localhost/LAN):
-no hay red externa.
+Permiten listar carpetas del disco del servidor, crear carpetas nuevas y gestionar
+bookmarks de directorios de uso frecuente. Todo es local (localhost/LAN): no hay
+red externa.
+
+Bookmarks: se guardan en `data/bookmarks.json` junto al paquete (excluido del git).
 """
 
+import json
 import os
+import pathlib
 import string
+import threading
 
 from aiohttp import web
 from server import PromptServer
+
+_DATA_DIR = pathlib.Path(__file__).parent / "data"
+_BOOKMARKS_FILE = _DATA_DIR / "bookmarks.json"
+_bm_lock = threading.Lock()
 
 
 def _list_drives():
@@ -24,10 +33,28 @@ def _list_drives():
 
 
 def _is_drive_root(path):
-    # "C:" o "C:\" -> raiz de unidad
     p = path.rstrip("\\/")
     return os.name == "nt" and len(p) == 2 and p[1] == ":"
 
+
+def _load_bookmarks():
+    try:
+        with open(_BOOKMARKS_FILE, encoding="utf-8") as f:
+            data = json.load(f)
+        if isinstance(data, list):
+            return data
+    except (FileNotFoundError, json.JSONDecodeError):
+        pass
+    return []
+
+
+def _save_bookmarks(bookmarks):
+    _DATA_DIR.mkdir(exist_ok=True)
+    with open(_BOOKMARKS_FILE, "w", encoding="utf-8") as f:
+        json.dump(bookmarks, f, ensure_ascii=False, indent=2)
+
+
+# --- Navegador de carpetas --------------------------------------------------
 
 @PromptServer.instance.routes.post("/dotech_saveexr_sequence/listdir")
 async def listdir(request):
@@ -37,7 +64,6 @@ async def listdir(request):
         data = {}
     path = (data.get("path") or "").strip()
 
-    # Sin ruta -> raiz: en Windows mostramos las unidades; en POSIX "/".
     if not path:
         if os.name == "nt":
             return web.json_response({
@@ -58,7 +84,7 @@ async def listdir(request):
                     if entry.is_dir():
                         dirs.append(entry.name)
                 except OSError:
-                    continue  # enlaces rotos, permisos, etc.
+                    continue
     except PermissionError:
         return web.json_response({"error": f"Sin permiso para listar: {path}"}, status=403)
     except OSError as e:
@@ -66,7 +92,6 @@ async def listdir(request):
 
     dirs.sort(key=str.lower)
 
-    # Padre: hacia arriba; desde la raiz de una unidad se vuelve a la lista de unidades.
     if _is_drive_root(path):
         parent = ""
     else:
@@ -98,3 +123,46 @@ async def mkdir(request):
         return web.json_response({"error": str(e)}, status=400)
 
     return web.json_response({"path": new_path})
+
+
+# --- Bookmarks --------------------------------------------------------------
+
+@PromptServer.instance.routes.get("/dotech_saveexr_sequence/bookmarks")
+async def get_bookmarks(request):
+    with _bm_lock:
+        bm = _load_bookmarks()
+    return web.json_response({"bookmarks": bm})
+
+
+@PromptServer.instance.routes.post("/dotech_saveexr_sequence/bookmarks/add")
+async def add_bookmark(request):
+    try:
+        data = await request.json()
+    except Exception:
+        data = {}
+    path = (data.get("path") or "").strip()
+    label = (data.get("label") or "").strip()
+    if not label:
+        label = os.path.basename(path.rstrip("\\/")) or path
+    if not path:
+        return web.json_response({"error": "Falta 'path'."}, status=400)
+    with _bm_lock:
+        bm = _load_bookmarks()
+        if not any(b["path"] == path for b in bm):
+            bm.append({"label": label, "path": path})
+            _save_bookmarks(bm)
+    return web.json_response({"bookmarks": bm})
+
+
+@PromptServer.instance.routes.post("/dotech_saveexr_sequence/bookmarks/remove")
+async def remove_bookmark(request):
+    try:
+        data = await request.json()
+    except Exception:
+        data = {}
+    path = (data.get("path") or "").strip()
+    with _bm_lock:
+        bm = _load_bookmarks()
+        bm = [b for b in bm if b["path"] != path]
+        _save_bookmarks(bm)
+    return web.json_response({"bookmarks": bm})
