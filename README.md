@@ -109,6 +109,13 @@ los valores **superan 1.0** (rango HDR conservado).
 
 ## Changelog
 
+### 0.3 (2026-06-28)
+- **Selección de canales**: toggles R / G / B / A independientes. Canal desactivado se excluye del fichero.
+- **Alpha input**: entrada opcional `alpha` (IMAGE). Se mezcla como canal A o reemplaza el existente en el input.
+- **Alpha output**: salida `alpha` (IMAGE grayscale) con el canal A extraído. Si el input no tiene A, devuelve blanco opaco.
+- **Multi-formato**: nuevo selector `format` — `exr` (HDR, sin clamp), `png` (8-bit), `tif` (16-bit via imageio), `jpg` (8-bit, parámetro `jpg_quality`), `hdr` (Radiance float32).
+- Nota: `half_precision` y `compression` solo aplican a EXR; `jpg_quality` solo a JPG; HDR y JPG ignoran el canal A.
+
 ### 0.2 (2026-06-28)
 - **Bookmarks**: sidebar en el navegador de carpetas para guardar y recuperar directorios
   de uso frecuente. Botón ⭐ para añadir la carpeta actual; botón 🗑 por bookmark para

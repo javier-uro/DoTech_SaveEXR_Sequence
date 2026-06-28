@@ -7,7 +7,7 @@ workflow LTX IC-LoRA SDR->HDR sin que los chunks se pisen.
 
 from .nodes import NODE_CLASS_MAPPINGS, NODE_DISPLAY_NAME_MAPPINGS
 
-__version__ = "0.2.0"
+__version__ = "0.3.0"
 
 # Endpoints del navegador de carpetas. Se envuelve en try/except para que un
 # fallo registrando rutas no impida cargar el nodo en si.
