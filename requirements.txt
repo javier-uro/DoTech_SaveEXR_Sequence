@@ -1,0 +1,2 @@
+OpenEXR>=3.2
+numpy
